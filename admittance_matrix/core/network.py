@@ -222,18 +222,24 @@ class Network:
         return Y_reduced
     
     def _get_all_sources(self, name_to_exclude: str | None = None) -> list[SourceShunt]:
-        """Get all source shunt elements (generators, voltage sources, external grids)."""
-        source_types = (GeneratorShunt, VoltageSourceShunt, ExternalGridShunt)
-        sources: list[SourceShunt] = []
+        """Get all source shunt elements in canonical order."""
+        def keep(shunt: SourceShunt) -> bool:
+            return name_to_exclude is None or shunt.name != name_to_exclude
 
-        for shunt in self.shunts:
-            if name_to_exclude is not None and shunt.name == name_to_exclude:
-                continue
+        generators = [
+            shunt for shunt in self.shunts
+            if isinstance(shunt, GeneratorShunt) and keep(shunt)
+        ]
+        voltage_sources = [
+            shunt for shunt in self.shunts
+            if isinstance(shunt, VoltageSourceShunt) and keep(shunt)
+        ]
+        external_grids = [
+            shunt for shunt in self.shunts
+            if isinstance(shunt, ExternalGridShunt) and keep(shunt)
+        ]
 
-            if isinstance(shunt, source_types):
-                sources.append(shunt)
-
-        return sources
+        return generators + voltage_sources + external_grids
     
     def calculate_power_ratios(self, disturbance_source_name: str, MODE: Literal[0, 1, 2] = 1) -> tuple[npt.NDArray[np.float64], list[str], list[str]]:
         """
