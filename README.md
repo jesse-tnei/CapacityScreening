@@ -1,33 +1,39 @@
-# PowerFactory Admittance Matrix Library
+# N-1 Hosting Capacity Screening for PowerFactory
 
-A Python library for extracting admittance matrices from DIgSILENT PowerFactory networks.
+A Python toolkit for performing local N-1 hosting capacity screening on transmission networks modelled in DIgSILENT PowerFactory. It implements and compares two approaches:
+
+- **Efficient method** — analytically computes headroom using DC Power Transfer Distribution Factors (PTDFs) and Line Outage Distribution Factors (LODFs) derived from the admittance matrix. Requires only a single network snapshot; no repeated load flows.
+- **Manual / finite-difference method** — numerically estimates the same sensitivities by running two DC load flows per N-1 outage (at 0 MW and at a test increment). Serves as a reference to validate the efficient method.
+
+Both methods produce identical results by design; the key difference is speed and computational cost.
 
 ## Notice
 
 ⚠️ **This library is under active development.**
 
-The library currently supports extraction of multiple PowerFactory network elements, however some components require further refinement—particularly the proper handling of voltage tap settings for 2-winding and 3-winding transformers.
-
-If you encounter any issues or would like to request new functionality, please [open an issue](https://github.com/ULFE-LPEE/PowerFactory-Admittance-Matrix/issues) on GitHub or contact the developer directly at martin.valencic@fe.uni-lj.si.
+Some components require further refinement — particularly the proper handling of voltage tap settings for 2-winding and 3-winding transformers. If you encounter any issues or would like to request new functionality, please [open an issue](https://github.com/jesse-tnei/CapacityScreening/issues).
 
 ## Features
 
-- Extract load flow and stability admittance matrices from PowerFactory
-- Kron reduction to generator internal buses
-- Power distribution ratio calculations for generator trip scenarios
+- Extract a DC network snapshot (buses, branches, couplers) from a live PowerFactory session
+- Build the admittance matrix and compute PTDF/LODF factors analytically
+- Screen every candidate substation for N-1 load or generation headroom
+- Optionally repeat the screen with each open bus coupler in the closed position
+- Export results to Excel and a plain-text log
+- Finite-difference screener for result validation
 
 ## Installation
 
 ### From GitHub
 
 ```bash
-pip install git+https://github.com/ULFE-LPEE/PowerFactory-Admittance-Matrix.git
+pip install git+https://github.com/jesse-tnei/CapacityScreening.git
 ```
 
 To update to the latest version:
 
 ```bash
-pip install --upgrade git+https://github.com/ULFE-LPEE/PowerFactory-Admittance-Matrix.git
+pip install --upgrade git+https://github.com/jesse-tnei/CapacityScreening.git
 ```
 
 ### Local Development
@@ -36,57 +42,83 @@ pip install --upgrade git+https://github.com/ULFE-LPEE/PowerFactory-Admittance-M
 pip install -e .
 ```
 
+**Dependencies:** `numpy`, `scipy`, `pandas`, `openpyxl`. PowerFactory must be installed separately.
+
 ## Quick Start
 
+### Efficient method (PTDF/LODF)
+
+Run `examples/000 - EfficientCapacityScreeningRefactored.py` from inside PowerFactory or from a terminal with PowerFactory open.
+
+Edit the `CONFIG` block at the top of the script:
+
 ```python
-import sys
-sys.path.insert(0, r"C:\Program Files\DIgSILENT\PowerFactory 2024 SP4A\Python\3.12")
-import powerfactory as pf
-
-from admittance_matrix import Network
-from admittance_matrix.utils import init_project
-import pandas as pd
-
-# Connect to PowerFactory
-app = pf.GetApplicationExt()
-init_project(app, "Lokalizacija\\11_bus_radial_system") # Enter your PF project path here
-
-# Initialize network and build matrices
-net = Network(app, base_mva=100.0)
-net.build_matrices()
-
-# Access the matrices
-Y_loadflow = net.Y_lf_matrix       # Load flow admittance matrix
-Y_stability = net.Y_stab_matrix    # Stability admittance matrix (with generator reactances)
-
-print(f"Load flow Y-matrix shape: {Y_loadflow.shape}")
-print(f"Stability Y-matrix shape: {Y_stability.shape}")
-
-# Display with bus names as index and columns
-pd.DataFrame(Y_loadflow, index=net.bus_names, columns=net.bus_names)
+RUN_EXTERNAL      = False          # True = launched from terminal; False = inside PF
+PROJECT_NAME      = "Auto_Network_Model_2027"
+S_BASE_MVA        = 100.0
+LOADING_LIMIT_PCT = 90.0           # branch loading limit for N-1 check (%)
+MIN_BUSBAR_KV     = 132.0          # ignore substations below this voltage
+INJECTION_SIGN    = -1.0           # -1 = load headroom, +1 = generation headroom
+COUPLER_PASSES    = True           # also test each open bus coupler closed
 ```
+
+Then run from a terminal:
+
+```bash
+python "examples/000 - EfficientCapacityScreeningRefactored.py"
+```
+
+### Manual / finite-difference method
+
+Run `examples/000 - ManualCapacityScreeningRefactored.py` the same way. Configuration is set inside `_make_config()` near the top of the file.
+
+```bash
+# Inside PowerFactory (default)
+python "examples/000 - ManualCapacityScreeningRefactored.py"
+
+# From an external terminal
+python "examples/000 - ManualCapacityScreeningRefactored.py" external
+python "examples/000 - ManualCapacityScreeningRefactored.py" external "C:/Program Files/DIgSILENT/PowerFactory 2024"
+```
+
+Results (Excel + log) are written to the `output/` folder.
 
 ## Module Structure
 
 ```
 admittance_matrix/
 ├── adapters/
-│   └── powerfactory/     # PowerFactory-specific code
-│       ├── extractor.py  # Network element extraction
-│       ├── loadflow.py   # Load flow execution & results
-│       ├── naming.py     # Bus naming utilities
-│       └── results.py    # Result dataclasses
+│   └── powerfactory/
+│       ├── dc_extractor.py   # Extract DC network snapshot from PowerFactory
+│       ├── extractor.py      # Full AC network element extraction
+│       ├── loadflow.py       # Load flow execution & results
+│       ├── naming.py         # Bus naming utilities
+│       └── results.py        # Result dataclasses
 ├── core/
-│   ├── elements.py       # BranchElement, ShuntElement classes
-│   ├── network.py        # High-level Network wrapper
-│   └── reductionEngine.py # Network reduction engine
+│   ├── elements.py           # BranchElement, ShuntElement classes
+│   ├── network.py            # High-level Network wrapper
+│   └── reductionEngine.py    # Network reduction engine
 ├── matrices/
-│   ├── builder.py        # build_admittance_matrix()
-│   ├── reducer.py        # Kron reduction functions
-│   ├── analysis.py       # Power distribution ratio calculations
-│   └── topology.py       # Used for network simplification
+│   ├── builder.py            # build_admittance_matrix()
+│   ├── reducer.py            # Kron reduction
+│   ├── analysis.py           # Power distribution ratio calculations
+│   └── topology.py           # Network simplification
+├── screening/
+│   ├── config.py             # ScreeningConfig dataclass
+│   ├── engine.py             # PTDFLODFEngine (admittance-matrix-based)
+│   ├── finite_diff.py        # Finite-difference screener (manual method)
+│   ├── models.py             # NetworkSnapshot, HeadroomResult dataclasses
+│   ├── results.py            # Excel / log export
+│   ├── screener.py           # run_screening(), run_with_coupler_passes()
+│   └── topology.py           # Coupler topology helpers
 └── utils/
-    └── helpers.py        # Utility functions
+    └── helpers.py            # Utility functions
+
+examples/
+├── 000 - EfficientCapacityScreeningRefactored.py   # Efficient PTDF/LODF method
+└── 000 - ManualCapacityScreeningRefactored.py      # Finite-difference reference method
+
+output/                        # Generated Excel reports and logs
 ```
 
 ## Logging

@@ -1,45 +1,72 @@
 # Examples
 
-This folder contains Jupyter notebooks demonstrating how to use the `admittance_matrix` library.
+This folder contains runnable scripts for N-1 hosting capacity screening using DIgSILENT PowerFactory. Both scripts screen the same network and produce comparable results — they differ only in the underlying method.
 
 ## Prerequisites
 
 1. **PowerFactory** must be installed
-2. **Python packages**: `numpy`, `pandas`, `matplotlib`
+2. **Python packages**: `numpy`, `scipy`, `pandas`, `openpyxl`
+3. The `admittance_matrix` package must be installed (`pip install -e .` from the repo root)
 
-## Network Options
+## Scripts
 
-When creating a `Network` object, you can use the following options:
+### 000 - EfficientCapacityScreeningRefactored.py — *Efficient method (PTDF/LODF)*
 
-```python
-from admittance_matrix import Network
+Computes N-1 hosting capacity analytically using Power Transfer Distribution Factors (PTDFs) and Line Outage Distribution Factors (LODFs) derived from the network admittance matrix. A single DC network snapshot is extracted from PowerFactory; no repeated load flows are needed during the screen itself.
 
-# Basic usage
-net = Network(app, base_mva=100.0)
+Edit the `CONFIG` block at the top of the script, then run:
 
-# With topology simplification (merges buses connected by closed switches)
-net = Network(app, base_mva=100.0, simplify_topology=True)
+```bash
+# From inside PowerFactory (Tools > Python > Run Script)
+# — no changes needed
+
+# From an external terminal (PowerFactory must be open)
+# Set RUN_EXTERNAL = True in the CONFIG block first, then:
+python "000 - EfficientCapacityScreeningRefactored.py"
 ```
 
-## Notebooks
+**Key config options:**
 
-### 01_load_flow_admittance_matrix.ipynb
+| Parameter | Description |
+|---|---|
+| `RUN_EXTERNAL` | `False` = run inside PF; `True` = run from terminal |
+| `PROJECT_NAME` | PowerFactory project to activate (leave `""` for currently active) |
+| `LOADING_LIMIT_PCT` | Branch loading limit for the N-1 check (%) |
+| `MIN_BUSBAR_KV` | Ignore substations below this voltage level (kV) |
+| `INJECTION_SIGN` | `-1` = load headroom, `+1` = generation headroom |
+| `COUPLER_PASSES` | If `True`, repeat the screen with each open bus coupler closed |
 
-Demonstrates the basic workflow:
+---
 
-- Connect to PowerFactory
-- Import a PFD file and activate project (or manually open desired network in PF)
-- Extract network and build admittance matrix
-- View load flow Y-matrix as DataFrame
-- Run load flow calculation
-- Display load flow results (voltage magnitude and angle)
+### 000 - ManualCapacityScreeningRefactored.py — *Finite-difference method*
 
-### 02_stability_admittance_matrix_with_power_distribution.ipynb
+Computes the same N-1 headroom numerically by running two DC load flows per contingency (one at 0 MW injection and one at a small test increment). This serves as the reference implementation to validate the efficient method above.
 
-Demonstrates stability analysis with power distribution ratios:
+```bash
+# From inside PowerFactory
+python "000 - ManualCapacityScreeningRefactored.py"
 
-- Connect to PowerFactory and import PFD file
-- Build network and run load flow
-- Reduce admittance matrix to generator internal buses (Kron reduction)
-- Calculate power distribution ratios for a generator trip scenario
-- Bar chart visualization of power redistribution
+# From an external terminal (PowerFactory must already be open)
+python "000 - ManualCapacityScreeningRefactored.py" external
+python "000 - ManualCapacityScreeningRefactored.py" external "C:/Program Files/DIgSILENT/PowerFactory 2024"
+```
+
+Configuration is set inside `_make_config()` near the top of the file.
+
+---
+
+## Output
+
+Both scripts write results to the `output/` folder in the repository root:
+
+- **`.xlsx`** — Excel workbook with a summary sheet (one row per substation) and a detail sheet (one row per circuit pair evaluated)
+- **`.txt`** — Plain-text log of the run, including timing and any warnings
+
+## Grid Models
+
+The `grid_models/` subfolder contains PowerFactory `.pfd` files used for testing:
+
+| File | Description |
+|---|---|
+| `Test_9_Bus.pfd` | Small 9-bus test network |
+| `Radial System.pfd` | Simple radial network |
