@@ -9,7 +9,7 @@ Both methods produce identical results by design; the key difference is speed an
 
 ## Notice
 
-⚠️ **This library is under active development.**
+ **This library is under active development.**
 
 Some components require further refinement — particularly the proper handling of voltage tap settings for 2-winding and 3-winding transformers. If you encounter any issues or would like to request new functionality, please [open an issue](https://github.com/jesse-tnei/CapacityScreening/issues).
 
