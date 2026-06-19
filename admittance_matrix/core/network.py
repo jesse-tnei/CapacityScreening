@@ -59,7 +59,7 @@ class Network:
         self._init_state()
 
         try:
-            self._hide()
+            #self._hide()
             self._initialize_network_model()
         finally:
             self._show()
@@ -670,3 +670,55 @@ class Network:
     def n_pv_systems(self) -> int:
         """Number of PV systems in the network."""
         return len([s for s in self.shunts if type(s).__name__ == 'PVSystemShunt'])
+
+    def screen_hosting_capacity(
+        self,
+        config=None,
+        *,
+        injection_sign: float = -1.0,
+        coupler_passes: bool = True,
+        output_xlsx: str | None = None,
+    ) -> tuple[list[dict], list[dict]]:
+        """Run DC N-1 hosting capacity screening for all candidate substations.
+
+        Args:
+            config: ScreeningConfig instance (default: ScreeningConfig()).
+            injection_sign: +1 for generation headroom, -1 for load headroom.
+            coupler_passes: If True, also run one screening pass per open bus
+                coupler local to a candidate substation.
+            output_xlsx: If provided, save summary + detail sheets to this path.
+
+        Returns:
+            (summary_rows, detail_rows) — lists of dicts suitable for
+            pd.DataFrame(summary_rows).
+        """
+        try:
+            from ..screening import (
+                ScreeningConfig, run_screening, run_with_coupler_passes,
+                save_results_xlsx,
+            )
+            from ..adapters.powerfactory.dc_extractor import extract_snapshot
+        except ImportError as exc:
+            raise ImportError(
+                "Screening requires scipy. Install it with: "
+                "pip install admittance_matrix[screening]"
+            ) from exc
+
+        if config is None:
+            config = ScreeningConfig(s_base_mva=self.base_mva)
+
+        snap = extract_snapshot(self.app, config)
+
+        if coupler_passes:
+            summary, detail = run_with_coupler_passes(
+                snap, None, config,
+                injection_sign=injection_sign,
+                app=self.app,
+            )
+        else:
+            summary, detail = run_screening(snap, config, injection_sign=injection_sign)
+
+        if output_xlsx:
+            save_results_xlsx(output_xlsx, summary, detail, config, app=self.app)
+
+        return summary, detail

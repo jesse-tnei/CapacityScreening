@@ -99,6 +99,23 @@ from .utils import (
     import_pfd_file,
 )
 
+# Screening subpackage (requires scipy — optional dependency)
+_SCREENING_AVAILABLE = False
+try:
+    from .screening import (
+        ScreeningConfig,
+        NetworkSnapshot,
+        HeadroomResult,
+        PTDFLODFEngine,
+        run_screening,
+        run_with_coupler_passes,
+        save_results_xlsx,
+    )
+    from .adapters.powerfactory.dc_extractor import extract_snapshot
+    _SCREENING_AVAILABLE = True
+except ImportError:
+    pass
+
 __all__ = [
     # Version
     '__version__',
@@ -141,4 +158,15 @@ __all__ = [
     # Utilities
     'init_project',
     'import_pfd_file',
+
+    # Screening (available when scipy is installed)
+    '_SCREENING_AVAILABLE',
+    'ScreeningConfig',
+    'NetworkSnapshot',
+    'HeadroomResult',
+    'PTDFLODFEngine',
+    'run_screening',
+    'run_with_coupler_passes',
+    'save_results_xlsx',
+    'extract_snapshot',
 ]

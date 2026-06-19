@@ -3,6 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Build / install artifacts
+*.egg-info/
+dist/
+build/
+
 # Jupyter Notebook
 .ipynb_checkpoints/
 
@@ -25,3 +30,6 @@ martin_ees_dev/*
 martin_ieee118_dev/*
 martin_IEEE_39/*
 martin_testing/*
+
+# Large grid model files
+examples/grid_models/Auto_Network_Model_2027.pfd

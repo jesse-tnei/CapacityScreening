@@ -1,0 +1,22 @@
+[INFO]  ================================================================================
+[INFO]  DC N-1 Hosting Capacity Screening — Finite-Difference Method
+[INFO]  ================================================================================
+[INFO]  Start time:      2026-06-19 11:58:03
+[INFO]  Test increment:  50.0 MW
+[INFO]  Loading limit:   90.0%
+[INFO]  Min busbar kV:   132.0
+[INFO]  Max substations: 1
+[INFO]  Output:          C:\Users\solomonj\Documents\Personal\PDev\ProgrammingProjects\PowerFactory-Admittance-Matrix\output\Manual_Refactored_Local_N1_Capacity_Screening_20260619_115803.xlsx
+[INFO]  Log:             C:\Users\solomonj\Documents\Personal\PDev\ProgrammingProjects\PowerFactory-Admittance-Matrix\output\Manual_Refactored_Local_N1_Capacity_Screening_20260619_115803.txt
+[INFO]  ================================================================================
+[INFO]    Candidate funnel: 1975 substations with buses; 1562 have a busbar >= 132.0 kV; 1644 have >= 2 local branches; 1 pass both filters.
+[INFO]    Closed-coupler merge: 26566 buses + 23257 closed couplers -> 3309 calculation nodes (open couplers remaining: 185)
+[INFO]    Slack-component prune: 3309 -> 1959 buses, 2933 -> 2913 branches (dropped 1350 orphans)
+[INFO]  Snapshot: 1959 buses, 2913 branches, 185 couplers, 1 candidate sites
+[INFO]  Results saved to: C:\Users\solomonj\Documents\Personal\PDev\ProgrammingProjects\PowerFactory-Admittance-Matrix\output\Manual_Refactored_Local_N1_Capacity_Screening_20260619_115803.xlsx
+[INFO]  Done. 1 substation(s) assessed.
+[INFO]  ================================================================================
+[INFO]  Start time:  2026-06-19 11:58:03
+[INFO]  Finish time: 2026-06-19 11:58:20
+[INFO]  Runtime:     17.0 s
+[INFO]  ================================================================================
