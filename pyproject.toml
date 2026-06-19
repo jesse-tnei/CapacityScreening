@@ -32,15 +32,19 @@ dependencies = [
 speed = [
     "scipy>=1.8.0",
 ]
+screening = [
+    "scipy>=1.8.0",
+    "openpyxl>=3.0.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/ULFE-LPEE/PowerFactory-Admittance-Matrix"
-Documentation = "https://github.com/ULFE-LPEE/PowerFactory-Admittance-Matrix#readme"
-Repository = "https://github.com/ULFE-LPEE/PowerFactory-Admittance-Matrix"
+Homepage = "https://github.com/jesse-tnei/CapacityScreening"
+Documentation = "https://github.com/jesse-tnei/CapacityScreening#readme"
+Repository = "https://github.com/jesse-tnei/CapacityScreening"
 
 [tool.setuptools.packages.find]
 where = ["."]
