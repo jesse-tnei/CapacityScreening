@@ -75,7 +75,9 @@ def _make_config(project_root: str) -> ScreeningConfig:
         loading_limit_pct=90.0,
         min_busbar_kv=132.0,
         min_sensitivity_mw=1e-3,
-        max_substations=1,           # 0 = screen all substations
+        # --- substation selection (mutually exclusive) ---
+        target_substations=[],      # e.g. ["ABHA", "LAGA", "BEAT"] — overrides max_substations
+        max_substations=10,        # 0 = all; N = first N alphabetically (when target_substations is empty)
         output_folder=os.path.join(project_root, "output"),
         fallback_output_folder=os.path.join(project_root, "output"),
         output_prefix="Manual_Refactored_Local_N1_Capacity_Screening",
@@ -97,6 +99,11 @@ def _run(app) -> None:
     log_lines: list[str] = []
     lapp = _LoggingApp(app, log_lines)
 
+    if config.target_substations:
+        sub_selection = ", ".join(config.target_substations)
+    else:
+        sub_selection = f"first {config.max_substations}" if config.max_substations else "all"
+
     lapp.PrintInfo("=" * 80)
     lapp.PrintInfo("DC N-1 Hosting Capacity Screening — Finite-Difference Method")
     lapp.PrintInfo("=" * 80)
@@ -104,7 +111,7 @@ def _run(app) -> None:
     lapp.PrintInfo(f"Test increment:  {_TEST_INCREMENT_MW} MW")
     lapp.PrintInfo(f"Loading limit:   {config.loading_limit_pct}%")
     lapp.PrintInfo(f"Min busbar kV:   {config.min_busbar_kv}")
-    lapp.PrintInfo(f"Max substations: {config.max_substations or 'all'}")
+    lapp.PrintInfo(f"Substations:     {sub_selection}")
     lapp.PrintInfo(f"Output:          {filename}")
     lapp.PrintInfo(f"Log:             {log_path}")
     lapp.PrintInfo("=" * 80)
@@ -123,11 +130,25 @@ def _run(app) -> None:
             test_increment_mw=_TEST_INCREMENT_MW,
         )
 
+        lapp.PrintInfo("")
+        lapp.PrintInfo(f"{'Substation':<30}  {'Capacity (MW)':>15}  {'Status':<25}  Binding contingency")
+        lapp.PrintInfo("-" * 100)
+        for row in summary_rows:
+            cap = row.get("Estimated Additional Capacity (MW)", "")
+            lapp.PrintInfo(
+                f"{row.get('Substation', ''):<30}  {str(cap):>15}  "
+                f"{row.get('Status', ''):<25}  {row.get('Binding N-1 Contingency') or ''}"
+            )
+        lapp.PrintInfo("")
+        lapp.PrintInfo(
+            f"{len(summary_rows)} substation(s) assessed, "
+            f"{len(detail_rows)} circuit pair(s) evaluated."
+        )
+
         written = save_results_xlsx(filename, summary_rows, detail_rows, config, app=lapp)
         end_dt = datetime.now()
         elapsed_s = (end_dt - start_dt).total_seconds()
         lapp.PrintInfo(f"Results saved to: {written}")
-        lapp.PrintInfo(f"Done. {len(summary_rows)} substation(s) assessed.")
         lapp.PrintInfo("=" * 80)
         lapp.PrintInfo(f"Start time:  {start_dt.strftime('%Y-%m-%d %H:%M:%S')}")
         lapp.PrintInfo(f"Finish time: {end_dt.strftime('%Y-%m-%d %H:%M:%S')}")

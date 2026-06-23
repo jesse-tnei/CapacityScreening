@@ -46,34 +46,42 @@ pip install -e .
 
 ## Quick Start
 
+All configuration lives in two places at the top of each script: a handful of module-level constants and the `_make_config()` function. There is no separate config file.
+
 ### Efficient method (PTDF/LODF)
 
-Run `examples/000 - EfficientCapacityScreeningRefactored.py` from inside PowerFactory or from a terminal with PowerFactory open.
-
-Edit the `CONFIG` block at the top of the script:
+Open `examples/000 - EfficientCapacityScreeningRefactored.py` and edit the constants and `_make_config()`:
 
 ```python
-RUN_EXTERNAL      = False          # True = launched from terminal; False = inside PF
-PROJECT_NAME      = "Auto_Network_Model_2027"
-S_BASE_MVA        = 100.0
-LOADING_LIMIT_PCT = 90.0           # branch loading limit for N-1 check (%)
-MIN_BUSBAR_KV     = 132.0          # ignore substations below this voltage
-INJECTION_SIGN    = -1.0           # -1 = load headroom, +1 = generation headroom
-COUPLER_PASSES    = True           # also test each open bus coupler closed
+# --- module-level constants ---
+_PROJECT_NAME   = "Auto_Network_Model_2027"   # "" = use the currently active project
+_INJECTION_SIGN = -1.0   # -1 = load headroom, +1 = generation headroom
+_COUPLER_PASSES = True   # also test each open bus coupler in the closed position
+
+def _make_config(project_root):
+    return ScreeningConfig(
+        loading_limit_pct  = 90.0,    # branch loading limit for N-1 check (%)
+        min_busbar_kv      = 132.0,   # ignore substations below this voltage (kV)
+        target_substations = [],      # e.g. ["ABHA", "LAGA"] — overrides max_substations
+        max_substations    = 10,      # 0 = all; N = first N alphabetically
+        output_prefix      = "Efficient_Refactored_Local_N1_Capacity_Screening",
+        ...
+    )
 ```
 
-Then run from a terminal:
+Run from inside PowerFactory (Tools > Python > Run Script), or from a terminal:
 
 ```bash
-python "examples/000 - EfficientCapacityScreeningRefactored.py"
+python "examples/000 - EfficientCapacityScreeningRefactored.py" external
+python "examples/000 - EfficientCapacityScreeningRefactored.py" external "C:/Program Files/DIgSILENT/PowerFactory 2025 SP4/Python/3.11"
 ```
 
 ### Manual / finite-difference method
 
-Run `examples/000 - ManualCapacityScreeningRefactored.py` the same way. Configuration is set inside `_make_config()` near the top of the file.
+Open `examples/000 - ManualCapacityScreeningRefactored.py` and edit `_make_config()` the same way. There are no module-level constants in this script — all settings are inside the function.
 
 ```bash
-# Inside PowerFactory (default)
+# Inside PowerFactory
 python "examples/000 - ManualCapacityScreeningRefactored.py"
 
 # From an external terminal
@@ -81,7 +89,24 @@ python "examples/000 - ManualCapacityScreeningRefactored.py" external
 python "examples/000 - ManualCapacityScreeningRefactored.py" external "C:/Program Files/DIgSILENT/PowerFactory 2024"
 ```
 
-Results (Excel + log) are written to the `output/` folder.
+Results (Excel + plain-text log) are written to the `output/` folder.
+
+## Comparing the Two Methods
+
+Both methods should produce the same capacity values. To verify:
+
+1. Set identical `target_substations` (or `max_substations`) in both scripts.
+2. Run the Efficient script, then the Manual script against the same active PowerFactory project.
+3. Open the two `.xlsx` files side by side — the **Summary** sheet capacity column should match within rounding.
+4. Compare runtimes in the two `.txt` logs. The Efficient method is typically 10–100× faster because it builds the B′ matrix once and uses PTDF/LODF algebra instead of running a DC load flow per contingency.
+
+| Criterion | Efficient (PTDF/LODF) | Manual (finite-difference) |
+|---|---|---|
+| DC load flows required | 1 (snapshot only) | 2 per N-1 outage per substation |
+| Speed | Fast | Slow for large networks |
+| Accuracy | Exact DC (same assumptions) | Matches Efficient to rounding |
+| Coupler passes | Yes | Yes |
+| When to use | Production runs | Validating the Efficient method |
 
 ## Module Structure
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import time
 from typing import Callable
 
 import numpy as np
@@ -117,14 +118,22 @@ def run_screening(
     config: ScreeningConfig,
     *,
     injection_sign: float = -1.0,
+    logger: Callable[[str], None] | None = None,
 ) -> tuple[list[dict], list[dict]]:
     """Screen all candidate sites for a given snapshot."""
+    t0 = time.perf_counter()
     engine = PTDFLODFEngine(snap)
+    if logger:
+        logger(f"    Engine build (B' + LU): {time.perf_counter() - t0:.3f}s")
+
     summary_rows = []
     detail_rows = []
     for site in snap.candidates:
+        t1 = time.perf_counter()
         result, drows = assess_candidate(snap, engine, site, config,
                                          injection_sign=injection_sign)
+        if logger:
+            logger(f"    {site.substation}: {time.perf_counter() - t1:.3f}s")
         summary_rows.append({
             "Substation": site.substation,
             "Estimated Additional Capacity (MW)": (
@@ -155,7 +164,19 @@ def run_with_coupler_passes(
     all_summary = []
     all_detail = []
 
-    s_asis, d_asis = run_screening(base_snap, config, injection_sign=injection_sign)
+    def _log(msg):
+        if app is not None:
+            try:
+                app.PrintInfo(msg)
+            except Exception:
+                pass
+        print(msg)
+
+    t_asis = time.perf_counter()
+    _log("  Pass: As-is")
+    s_asis, d_asis = run_screening(base_snap, config, injection_sign=injection_sign,
+                                   logger=_log)
+    _log(f"  As-is pass total: {time.perf_counter() - t_asis:.3f}s")
     for row in s_asis:
         row["Bus Coupler State"] = "As-is"
     for row in d_asis:
@@ -176,7 +197,11 @@ def run_with_coupler_passes(
         n_relevant += 1
         merged = with_coupler_closed(base_snap, coup.name)
         merged = refresh_intact_flows(merged) if refresh_intact_flows else merged
-        s_c, d_c = run_screening(merged, config, injection_sign=injection_sign)
+        t_coup = time.perf_counter()
+        _log(f"  Pass: Closed {coup.name}")
+        s_c, d_c = run_screening(merged, config, injection_sign=injection_sign,
+                                 logger=_log)
+        _log(f"  Coupler pass total: {time.perf_counter() - t_coup:.3f}s")
         label = f"Closed: {coup.name}"
         for row in s_c:
             row["Bus Coupler State"] = label
